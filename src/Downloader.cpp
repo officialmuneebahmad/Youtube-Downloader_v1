@@ -1,0 +1,338 @@
+#include "Downloader.h"
+#include <wininet.h>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <cstring>
+
+bool HasYtDlp() {
+    DWORD attrib = GetFileAttributesA("yt-dlp.exe");
+    return (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+bool HasFFmpeg() {
+    DWORD attrib = GetFileAttributesA("ffmpeg.exe");
+    return (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+static bool DownloadFileWinInet(HWND hWndParent, const std::string& url, const std::string& filePath, const std::string& itemName, std::atomic<bool>& cancelFlag) {
+    HINTERNET hInternet = InternetOpenA("YT-Downloader-Agent", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    if (!hInternet) {
+        return false;
+    }
+    
+    HINTERNET hUrl = InternetOpenUrlA(hInternet, url.c_str(), NULL, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE, 0);
+    if (!hUrl) {
+        InternetCloseHandle(hInternet);
+        return false;
+    }
+
+    // Query Content Length
+    char szSize[32] = {0};
+    DWORD dwSizeLen = sizeof(szSize);
+    DWORD totalSize = 0;
+    if (HttpQueryInfoA(hUrl, HTTP_QUERY_CONTENT_LENGTH, szSize, &dwSizeLen, NULL)) {
+        totalSize = atol(szSize);
+    }
+
+    std::ofstream out(filePath, std::ios::binary);
+    if (!out.is_open()) {
+        InternetCloseHandle(hUrl);
+        InternetCloseHandle(hInternet);
+        return false;
+    }
+
+    char buffer[8192];
+    DWORD bytesRead = 0;
+    DWORD bytesDownloaded = 0;
+
+    while (InternetReadFile(hUrl, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
+        if (cancelFlag) {
+            out.close();
+            DeleteFileA(filePath.c_str());
+            InternetCloseHandle(hUrl);
+            InternetCloseHandle(hInternet);
+            return false;
+        }
+
+        out.write(buffer, bytesRead);
+        bytesDownloaded += bytesRead;
+
+        int percent = 0;
+        if (totalSize > 0) {
+            percent = (int)(((double)bytesDownloaded / totalSize) * 100.0);
+        }
+
+        // Format progress text
+        std::stringstream ss;
+        ss << "Downloading " << itemName << "... ";
+        if (totalSize > 0) {
+            ss << (bytesDownloaded / (1024 * 1024)) << "MB / " << (totalSize / (1024 * 1024)) << "MB (" << percent << "%)";
+        } else {
+            ss << (bytesDownloaded / (1024 * 1024)) << "MB downloaded";
+        }
+
+        std::string* pMsg = new std::string(ss.str());
+        PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)percent, (LPARAM)pMsg);
+    }
+
+    out.close();
+    InternetCloseHandle(hUrl);
+    InternetCloseHandle(hInternet);
+    return true;
+}
+
+static bool RunCommandHidden(const std::string& command) {
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    ZeroMemory(&pi, sizeof(pi));
+
+    char cmd[8192];
+    strncpy(cmd, command.c_str(), sizeof(cmd) - 1);
+    cmd[sizeof(cmd) - 1] = '\0';
+
+    if (!CreateProcessA(NULL, cmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+        return false;
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exitCode = 0;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return exitCode == 0;
+}
+
+bool SetupDependencies(HWND hWndParent, std::atomic<bool>& cancelFlag) {
+    if (!HasYtDlp()) {
+        std::string* pMsg = new std::string("Setting up yt-dlp core engine... Please wait (this is a one-time setup).");
+        PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)0, (LPARAM)pMsg);
+        
+        std::string ytDlpUrl = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
+        if (!DownloadFileWinInet(hWndParent, ytDlpUrl, "yt-dlp.exe", "yt-dlp core engine", cancelFlag)) {
+            return false;
+        }
+    }
+
+    if (!HasFFmpeg()) {
+        std::string* pMsg = new std::string("Downloading FFmpeg audio/video merger... Please sit back and relax.");
+        PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)0, (LPARAM)pMsg);
+
+        std::string ffmpegUrl = "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip";
+        if (!DownloadFileWinInet(hWndParent, ffmpegUrl, "ffmpeg.zip", "FFmpeg component", cancelFlag)) {
+            return false;
+        }
+
+        pMsg = new std::string("Extracting engine files... Preparing your downloader for first-time use!");
+        PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)50, (LPARAM)pMsg);
+
+        // PowerShell unzip, copy ffmpeg.exe to main directory and clean up
+        std::string extractCmd = "powershell -Command \"Expand-Archive -Path 'ffmpeg.zip' -DestinationPath 'temp_ffmpeg' -Force; Get-ChildItem -Path 'temp_ffmpeg' -Filter 'ffmpeg.exe' -Recurse | Copy-Item -Destination '.'; Remove-Item -Recurse -Force 'temp_ffmpeg', 'ffmpeg.zip'\"";
+        if (!RunCommandHidden(extractCmd)) {
+            // Cleanup zip on failure
+            DeleteFileA("ffmpeg.zip");
+            return false;
+        }
+        
+        // Double check it succeeded
+        if (!HasFFmpeg()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static void ProcessLine(HWND hWndParent, const std::string& line, std::string& videoTitle) {
+    if (line.empty()) return;
+
+    if (line.find("[download]") != std::string::npos) {
+        size_t pctPos = line.find('%');
+        if (pctPos != std::string::npos) {
+            size_t startPos = pctPos;
+            while (startPos > 0 && (isdigit(line[startPos - 1]) || line[startPos - 1] == '.' || line[startPos - 1] == ' ')) {
+                startPos--;
+            }
+            std::string pctStr = line.substr(startPos, pctPos - startPos);
+            int percent = (int)atof(pctStr.c_str());
+
+            size_t atPos = line.find(" at ");
+            size_t etaPos = line.find(" ETA ");
+            std::string speed = "---";
+            std::string eta = "---";
+
+            if (atPos != std::string::npos && etaPos != std::string::npos) {
+                speed = line.substr(atPos + 4, etaPos - (atPos + 4));
+                eta = line.substr(etaPos + 5);
+                
+                // Trim trailing spaces/newlines
+                speed.erase(speed.find_last_not_of(" \t\r\n") + 1);
+                eta.erase(eta.find_last_not_of(" \t\r\n") + 1);
+            }
+
+            std::stringstream ss;
+            ss << "Downloading: " << percent << "% | Speed: " << speed << " | ETA: " << eta;
+            std::string* pMsg = new std::string(ss.str());
+            PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)percent, (LPARAM)pMsg);
+        } else if (line.find("Destination:") != std::string::npos) {
+            size_t destPos = line.find("Destination:");
+            std::string dest = line.substr(destPos + 12);
+            dest.erase(0, dest.find_first_not_of(" \t"));
+            
+            size_t lastSlash = dest.find_last_of("\\/");
+            std::string filename = (lastSlash == std::string::npos) ? dest : dest.substr(lastSlash + 1);
+
+            size_t lastDot = filename.find_last_of(".");
+            std::string title = (lastDot == std::string::npos) ? filename : filename.substr(0, lastDot);
+            
+            if (videoTitle.empty() || videoTitle == "YouTube Video") {
+                videoTitle = title;
+            }
+
+            std::string* pMsg = new std::string("Target file: " + filename);
+            PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)0, (LPARAM)pMsg);
+        }
+    } else if (line.find("[ExtractAudio]") != std::string::npos) {
+        std::string* pMsg = new std::string("Extracting audio and converting to MP3...");
+        PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)95, (LPARAM)pMsg);
+    } else if (line.find("[Merger]") != std::string::npos) {
+        std::string* pMsg = new std::string("Merging high-quality video and audio channels...");
+        PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)95, (LPARAM)pMsg);
+    }
+}
+
+bool DownloadVideo(HWND hWndParent, 
+                  const std::string& url, 
+                  int qualityIndex, 
+                  bool forceMp3, 
+                  bool allowPlaylist, 
+                  std::atomic<bool>& cancelFlag) {
+                      
+    (void)forceMp3; // Suppress unused parameter warning
+    CreateDirectoryA("downloads", NULL);
+
+    std::string cmd = "yt-dlp.exe --newline --progress --concurrent-fragments 16 --progress-template \"[download] %(progress._percent_str)s at %(progress._speed_str)s ETA %(progress._eta_str)s\" ";
+    if (allowPlaylist) {
+        cmd += "--yes-playlist ";
+    } else {
+        cmd += "--no-playlist ";
+    }
+
+    cmd += "-o \"downloads/%(title)s.%(ext)s\" ";
+
+    switch (qualityIndex) {
+        case 0: cmd += "-f \"bestvideo+bestaudio/best\" --merge-output-format mp4 "; break;
+        case 1: cmd += "-f \"bestvideo[height<=1080]+bestaudio/best[ext=m4a]/best\" --merge-output-format mp4 "; break;
+        case 2: cmd += "-f \"bestvideo[height<=720]+bestaudio/best[ext=m4a]/best\" --merge-output-format mp4 "; break;
+        case 3: cmd += "-f \"bestvideo[height<=480]+bestaudio/best[ext=m4a]/best\" --merge-output-format mp4 "; break;
+        case 4: cmd += "-x --audio-format mp3 --audio-quality 0 "; break;
+        case 5: cmd += "-x --audio-format mp3 --audio-quality 5 "; break;
+        case 6: cmd += "-f \"bestaudio[ext=m4a]/best\" "; break;
+        default: cmd += "-f \"bestvideo+bestaudio/best\" --merge-output-format mp4 "; break;
+    }
+
+    cmd += "\"" + url + "\"";
+
+    // Setup redirected pipes
+    SECURITY_ATTRIBUTES saAttr;
+    saAttr.nLength = sizeof(saAttr);
+    saAttr.bInheritHandle = TRUE;
+    saAttr.lpSecurityDescriptor = NULL;
+
+    HANDLE hChildStd_OUT_Rd = NULL;
+    HANDLE hChildStd_OUT_Wr = NULL;
+
+    if (!CreatePipe(&hChildStd_OUT_Rd, &hChildStd_OUT_Wr, &saAttr, 0)) {
+        return false;
+    }
+
+    if (!SetHandleInformation(hChildStd_OUT_Rd, HANDLE_FLAG_INHERIT, 0)) {
+        CloseHandle(hChildStd_OUT_Rd);
+        CloseHandle(hChildStd_OUT_Wr);
+        return false;
+    }
+
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    si.hStdError = hChildStd_OUT_Wr;
+    si.hStdOutput = hChildStd_OUT_Wr;
+    si.dwFlags |= STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    ZeroMemory(&pi, sizeof(pi));
+
+    char cmdLine[8192];
+    strncpy(cmdLine, cmd.c_str(), sizeof(cmdLine) - 1);
+    cmdLine[sizeof(cmdLine) - 1] = '\0';
+
+    if (!CreateProcessA(NULL, cmdLine, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+        CloseHandle(hChildStd_OUT_Rd);
+        CloseHandle(hChildStd_OUT_Wr);
+        return false;
+    }
+
+    // Close the write end of the pipe in parent
+    CloseHandle(hChildStd_OUT_Wr);
+
+    char buffer[4096];
+    DWORD bytesRead = 0;
+    std::string lineBuffer = "";
+    std::string videoTitle = "YouTube Video";
+
+    while (ReadFile(hChildStd_OUT_Rd, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
+        if (cancelFlag) {
+            // Kill child process tree
+            TerminateProcess(pi.hProcess, 1);
+            
+            CloseHandle(hChildStd_OUT_Rd);
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+            
+            std::string* pErr = new std::string("Download Cancelled");
+            PostMessage(hWndParent, WM_DOWNLOAD_COMPLETE, 0, (LPARAM)pErr);
+            return false;
+        }
+        buffer[bytesRead] = '\0';
+        lineBuffer += buffer;
+
+        size_t pos;
+        while ((pos = lineBuffer.find_first_of("\r\n")) != std::string::npos) {
+            std::string line = lineBuffer.substr(0, pos);
+            lineBuffer.erase(0, pos + 1);
+            ProcessLine(hWndParent, line, videoTitle);
+        }
+    }
+
+    // Process remainder of buffer
+    if (!lineBuffer.empty()) {
+        ProcessLine(hWndParent, lineBuffer, videoTitle);
+    }
+
+    CloseHandle(hChildStd_OUT_Rd);
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exitCode = 0;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    if (exitCode == 0) {
+        std::string* pTitle = new std::string(videoTitle);
+        PostMessage(hWndParent, WM_DOWNLOAD_COMPLETE, 1, (LPARAM)pTitle);
+        return true;
+    } else {
+        std::string* pErr = new std::string("yt-dlp exited with error " + std::to_string(exitCode));
+        PostMessage(hWndParent, WM_DOWNLOAD_COMPLETE, 0, (LPARAM)pErr);
+        return false;
+    }
+}

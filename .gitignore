@@ -1,0 +1,33 @@
+# Build artifacts
+*.o
+*.obj
+*.res
+*.exe
+!web/yt-downloader.exe
+
+# IDE / Editor
+.vscode/
+.cache/
+*.swp
+*.swo
+
+# Compiled output
+build/
+
+# Dependencies (auto-downloaded at runtime)
+yt-dlp.exe
+ffmpeg.exe
+
+# Downloads folder
+downloads/
+
+# History log
+history.txt
+
+# OS files
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Compile commands (generated)
+compile_commands.json

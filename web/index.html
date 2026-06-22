@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vivid YouTube Downloader - Ultra-lightweight Native Windows App</title>
+    <meta name="description" content="Download YouTube videos and extract high-quality MP3s with Vivid, a beautiful, high-performance C++ desktop application for Windows.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <!-- Navbar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <span class="logo-text">Vivid</span>
+                <span class="logo-dot">.</span>
+            </a>
+            <nav class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#demo">How it Looks</a>
+                <a href="#install">Installation</a>
+                <a href="#faq">FAQ</a>
+            </nav>
+            <div class="nav-actions">
+                <button id="theme-toggle" class="theme-btn" aria-label="Toggle light/dark theme">
+                    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                    </svg>
+                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+                <a href="yt-downloader.exe" class="btn btn-secondary download-btn">Download Free</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="badge">🔥 100% Standalone C++ Executable</div>
+                <h1>Download Video & Audio at <span class="gradient-text">Absolute Maximum Speed</span></h1>
+                <p class="hero-desc">
+                    Vivid is a high-performance native Windows GUI application that downloads YouTube media at high resolutions and extracts studio-grade MP3s. Zero installer bloat, 100% speed.
+                </p>
+                <div class="hero-buttons">
+                    <a href="yt-downloader.exe" class="btn btn-primary btn-large download-btn">
+                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download for Windows
+                    </a>
+                    <a href="#features" class="btn btn-tertiary btn-large">Learn More</a>
+                </div>
+                <div class="hero-meta">
+                    <span>File size: <strong>~150 KB</strong></span>
+                    <span class="separator">•</span>
+                    <span>Supports: <strong>Windows 10 / 11 (64-bit)</strong></span>
+                </div>
+            </div>
+
+            <!-- Interactive App Mock Simulator -->
+            <div class="hero-demo-wrapper" id="demo">
+                <div class="app-mockup">
+                    <div class="app-header-bar">
+                        <div class="app-title">
+                            <span class="gradient-header-text">VIVID YOUTUBE DOWNLOADER</span>
+                        </div>
+                        <div class="app-controls">
+                            <span class="app-min"></span>
+                            <span class="app-max"></span>
+                            <span class="app-close"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="app-body">
+                        <!-- Top Row: Input and Paste -->
+                        <div class="form-row">
+                            <div class="input-container">
+                                <label>Paste YouTube URL:</label>
+                                <div class="input-with-btn">
+                                    <input type="text" id="mock-url-input" class="mock-input" placeholder="Enter link here..." readonly>
+                                    <button class="mock-btn paste-btn" id="mock-paste-btn">Paste URL</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dropdown and Options Row -->
+                        <div class="form-row split">
+                            <div class="combo-container">
+                                <label>Select Format / Quality:</label>
+                                <div class="mock-select" id="mock-quality-dropdown">
+                                    <div class="selected-value" id="mock-quality-selected">Best Quality (Video+Audio)</div>
+                                    <div class="dropdown-arrow">▼</div>
+                                    <div class="dropdown-list" id="mock-dropdown-list">
+                                        <div class="dropdown-item" data-val="0">Best Quality (Video+Audio)</div>
+                                        <div class="dropdown-item" data-val="1">1080p Full HD (MP4)</div>
+                                        <div class="dropdown-item" data-val="2">720p HD (MP4)</div>
+                                        <div class="dropdown-item" data-val="3">480p SD (MP4)</div>
+                                        <div class="dropdown-item" data-val="4">MP3 Audio (High 320kbps)</div>
+                                        <div class="dropdown-item" data-val="5">MP3 Audio (Standard 192kbps)</div>
+                                        <div class="dropdown-item" data-val="6">M4A Audio</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="checkbox-container">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="mock-audio-chk" disabled>
+                                    <span>Extract Audio Only</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="mock-playlist-chk" disabled>
+                                    <span>Download Full Playlist</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-row buttons">
+                            <button class="mock-btn action-btn main-btn" id="mock-start-btn">START DOWNLOAD</button>
+                            <button class="mock-btn action-btn secondary-btn" id="mock-cancel-btn" disabled>CANCEL</button>
+                        </div>
+
+                        <!-- Progress Bar & Status -->
+                        <div class="form-row status-bar">
+                            <div class="status-text" id="mock-status-text">Status: Ready</div>
+                            <div class="mock-progress-container">
+                                <div class="mock-progress-fill" id="mock-progress-bar"></div>
+                            </div>
+                        </div>
+
+                        <!-- History Log -->
+                        <div class="form-row history-section">
+                            <label>Download History:</label>
+                            <div class="mock-listbox" id="mock-history-list">
+                                <div class="history-item">2026-06-22 07:45:12  |  LOFI Hip Hop Study Beats [MP3 (320k)]  -  Success</div>
+                                <div class="history-item">2026-06-22 07:50:34  |  C++ Multi-Threading Tutorial [1080p Video]  -  Success</div>
+                            </div>
+                            <div class="mock-history-buttons" style="display: flex; justify-content: space-between; margin-top: 6px;">
+                                <button class="mock-btn" style="padding: 3px 8px; font-size: 10px;" onclick="alert('Simulated Downloads Folder:\nDownloads are saved to: /downloads/')">Show Downloads Folder</button>
+                                <button class="mock-btn" style="padding: 3px 8px; font-size: 10px;" onclick="document.getElementById('mock-history-list').innerHTML = ''">Clear History</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="demo-caption">Interactive Simulator: Click <strong>START DOWNLOAD</strong> to test it!</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="section-container">
+            <div class="section-header">
+                <h2>Why Choose Vivid?</h2>
+                <p>Designed for power users who want quality and efficiency without complex setups.</p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon icon-cyan">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h3>Lightweight & Fast</h3>
+                    <p>Compiled natively in C++ for Windows. Launches in milliseconds and uses minimal CPU and RAM.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon icon-purple">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                        </svg>
+                    </div>
+                    <h3>MP3 Studio Conversion</h3>
+                    <p>Auto-converts music and podcasts into standard MP3 audio files with custom bitrates up to 320kbps.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon icon-pink">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                    <h3>Playlist Downloads</h3>
+                    <p>Simply paste a playlist URL, check the box, and fetch whole channels or music albums in one click.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon icon-blue">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                    </div>
+                    <h3>Download Log History</h3>
+                    <p>Keep track of all your past downloads with local logs. Clear them easily at any time in the settings.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon icon-orange">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                    </div>
+                    <h3>Native Dark Mode</h3>
+                    <p>Includes a clean Dark Mode that respects your system preferences, reducing eye strain during night downloads.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon icon-green">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                    <h3>Safe & Ad-Free</h3>
+                    <p>No browser extensions, no advertisements, and no tracking scripts. Built using pure open-source C++ code.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Steps -->
+    <section class="install" id="install">
+        <div class="section-container">
+            <div class="section-header">
+                <h2>Quick 3-Step Setup</h2>
+                <p>No complex installer wizards. Ready to run in seconds.</p>
+            </div>
+            
+            <div class="steps-flow">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <h4>Download Executable</h4>
+                    <p>Click download to save `yt-downloader.exe` (~150KB) to your local disk.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <h4>Launch Application</h4>
+                    <p>Double-click the executable. No installation is required as it runs portably.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <h4>Auto-setup Setup</h4>
+                    <p>On first boot, the app downloads safe binaries of `yt-dlp` and `ffmpeg` automatically.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq" id="faq">
+        <div class="section-container">
+            <div class="section-header">
+                <h2>Frequently Asked Questions</h2>
+                <p>Everything you need to know about the downloader.</p>
+            </div>
+
+            <div class="faq-list">
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>Is this application free and safe?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes. Vivid is 100% free, ad-free, and contains no tracking scripts. It is a standard wrapper written in C++ around standard command line tools (yt-dlp and ffmpeg).</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>Why does Windows Defender show a warning?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Since the executable is compiled locally and not signed with an expensive Microsoft developer certificate, Windows SmartScreen may show a warning. You can safely click "More Info" and "Run Anyway".</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>Where are downloaded videos saved?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>The application automatically creates a <code>downloads</code> folder in the same directory where <code>yt-downloader.exe</code> is running, and saves all media there.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>Do I need to install FFmpeg or python?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <p>No. The C++ application automatically checks for dependencies and downloads standalone builds of <code>yt-dlp</code> and <code>ffmpeg</code> on its first run, configuring everything dynamically.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <p>&copy; 2026 Vivid Downloader Project. Built with pure Win32 C++ API for Windows. Distributed under MIT License.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+</body>
+</html>
