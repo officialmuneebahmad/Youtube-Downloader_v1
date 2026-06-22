@@ -4,6 +4,7 @@
 *.res
 *.exe
 !web/yt-downloader.exe
+!docs/yt-downloader.exe
 
 # IDE / Editor
 .vscode/
