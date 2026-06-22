@@ -19,7 +19,7 @@ A high-performance, ultra-lightweight native Windows desktop application for dow
 
 ## 📦 Quick Start
 
-1. **Download** `yt-downloader.exe` from the [landing page](https://YOUR_USERNAME.github.io/vivid-yt-downloader/) or [Releases](../../releases)
+1. **Download** `yt-downloader.exe` from the [landing page](https://officialmuneebahmad.github.io/Youtube-Downloader_v1/) or [Releases](../../releases)
 2. **Run** the executable — no installation required
 3. **First launch** auto-downloads `yt-dlp` and `ffmpeg` dependencies
 
