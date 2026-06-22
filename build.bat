@@ -23,6 +23,7 @@ if %errorlevel% neq 0 (
 echo [3/3] Build Completed Successfully!
 echo Output executable: yt-downloader.exe
 copy yt-downloader.exe web\yt-downloader.exe /Y
+copy yt-downloader.exe docs\yt-downloader.exe /Y
 echo.
 echo Press any key to exit...
 pause > null

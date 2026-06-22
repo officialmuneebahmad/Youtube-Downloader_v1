@@ -12,9 +12,9 @@
 #define WM_DOWNLOAD_PROGRESS  (WM_USER + 102) // wParam = progress percent (int), lParam = std::string* (status text, caller must delete)
 #define WM_DOWNLOAD_COMPLETE  (WM_USER + 103) // wParam = success (1=yes, 0=no),  lParam = std::string* (title on success / error msg on fail, caller must delete)
 
-// Check if yt-dlp.exe and ffmpeg.exe are present in working directory
-bool HasYtDlp();
-bool HasFFmpeg();
+// Resolve absolute paths to yt-dlp.exe and ffmpeg.exe
+std::string GetYtDlpPath();
+std::string GetFFmpegPath();
 
 // Download and set up yt-dlp and ffmpeg if missing.
 // Posts WM_DOWNLOAD_PROGRESS messages to hWndParent.

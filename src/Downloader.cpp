@@ -7,14 +7,75 @@
 #include <algorithm>
 #include <cstring>
 
-bool HasYtDlp() {
-    DWORD attrib = GetFileAttributesA("yt-dlp.exe");
+static bool FileExists(const std::string& path) {
+    DWORD attrib = GetFileAttributesA(path.c_str());
     return (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-bool HasFFmpeg() {
-    DWORD attrib = GetFileAttributesA("ffmpeg.exe");
-    return (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY));
+static std::string GetCentralFolder() {
+    char localAppData[MAX_PATH];
+    if (GetEnvironmentVariableA("LOCALAPPDATA", localAppData, MAX_PATH) > 0) {
+        std::string path = std::string(localAppData) + "\\VividDownloader";
+        CreateDirectoryA(path.c_str(), NULL);
+        return path;
+    }
+    return "";
+}
+
+std::string GetYtDlpPath() {
+    // 1. Current working directory
+    if (FileExists("yt-dlp.exe")) {
+        char absPath[MAX_PATH];
+        if (GetFullPathNameA("yt-dlp.exe", MAX_PATH, absPath, NULL) > 0) {
+            return std::string(absPath);
+        }
+        return ".\\yt-dlp.exe";
+    }
+
+    // 2. System PATH
+    char pathBuffer[MAX_PATH];
+    if (SearchPathA(NULL, "yt-dlp", ".exe", MAX_PATH, pathBuffer, NULL) > 0) {
+        return std::string(pathBuffer);
+    }
+
+    // 3. Centralized folder
+    std::string central = GetCentralFolder();
+    if (!central.empty()) {
+        std::string centralPath = central + "\\yt-dlp.exe";
+        if (FileExists(centralPath)) {
+            return centralPath;
+        }
+    }
+
+    return "";
+}
+
+std::string GetFFmpegPath() {
+    // 1. Current working directory
+    if (FileExists("ffmpeg.exe")) {
+        char absPath[MAX_PATH];
+        if (GetFullPathNameA("ffmpeg.exe", MAX_PATH, absPath, NULL) > 0) {
+            return std::string(absPath);
+        }
+        return ".\\ffmpeg.exe";
+    }
+
+    // 2. System PATH
+    char pathBuffer[MAX_PATH];
+    if (SearchPathA(NULL, "ffmpeg", ".exe", MAX_PATH, pathBuffer, NULL) > 0) {
+        return std::string(pathBuffer);
+    }
+
+    // 3. Centralized folder
+    std::string central = GetCentralFolder();
+    if (!central.empty()) {
+        std::string centralPath = central + "\\ffmpeg.exe";
+        if (FileExists(centralPath)) {
+            return centralPath;
+        }
+    }
+
+    return "";
 }
 
 static bool DownloadFileWinInet(HWND hWndParent, const std::string& url, const std::string& filePath, const std::string& itemName, std::atomic<bool>& cancelFlag) {
@@ -112,38 +173,45 @@ static bool RunCommandHidden(const std::string& command) {
 }
 
 bool SetupDependencies(HWND hWndParent, std::atomic<bool>& cancelFlag) {
-    if (!HasYtDlp()) {
+    std::string central = GetCentralFolder();
+    if (central.empty()) {
+        return false;
+    }
+
+    if (GetYtDlpPath().empty()) {
         std::string* pMsg = new std::string("Setting up yt-dlp core engine... Please wait (this is a one-time setup).");
         PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)0, (LPARAM)pMsg);
         
         std::string ytDlpUrl = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
-        if (!DownloadFileWinInet(hWndParent, ytDlpUrl, "yt-dlp.exe", "yt-dlp core engine", cancelFlag)) {
+        std::string targetYtDlp = central + "\\yt-dlp.exe";
+        if (!DownloadFileWinInet(hWndParent, ytDlpUrl, targetYtDlp, "yt-dlp core engine", cancelFlag)) {
             return false;
         }
     }
 
-    if (!HasFFmpeg()) {
+    if (GetFFmpegPath().empty()) {
         std::string* pMsg = new std::string("Downloading FFmpeg audio/video merger... Please sit back and relax.");
         PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)0, (LPARAM)pMsg);
 
         std::string ffmpegUrl = "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip";
-        if (!DownloadFileWinInet(hWndParent, ffmpegUrl, "ffmpeg.zip", "FFmpeg component", cancelFlag)) {
+        std::string targetZip = central + "\\ffmpeg.zip";
+        if (!DownloadFileWinInet(hWndParent, ffmpegUrl, targetZip, "FFmpeg component", cancelFlag)) {
             return false;
         }
 
         pMsg = new std::string("Extracting engine files... Preparing your downloader for first-time use!");
         PostMessage(hWndParent, WM_DOWNLOAD_PROGRESS, (WPARAM)50, (LPARAM)pMsg);
 
-        // PowerShell unzip, copy ffmpeg.exe to main directory and clean up
-        std::string extractCmd = "powershell -Command \"Expand-Archive -Path 'ffmpeg.zip' -DestinationPath 'temp_ffmpeg' -Force; Get-ChildItem -Path 'temp_ffmpeg' -Filter 'ffmpeg.exe' -Recurse | Copy-Item -Destination '.'; Remove-Item -Recurse -Force 'temp_ffmpeg', 'ffmpeg.zip'\"";
+        // PowerShell unzip, copy ffmpeg.exe to AppData directory and clean up
+        std::string extractCmd = "powershell -Command \"Set-Location -Path '" + central + "'; Expand-Archive -Path 'ffmpeg.zip' -DestinationPath 'temp_ffmpeg' -Force; Get-ChildItem -Path 'temp_ffmpeg' -Filter 'ffmpeg.exe' -Recurse | Copy-Item -Destination '.'; Remove-Item -Recurse -Force 'temp_ffmpeg', 'ffmpeg.zip'\"";
         if (!RunCommandHidden(extractCmd)) {
             // Cleanup zip on failure
-            DeleteFileA("ffmpeg.zip");
+            DeleteFileA(targetZip.c_str());
             return false;
         }
         
         // Double check it succeeded
-        if (!HasFFmpeg()) {
+        if (GetFFmpegPath().empty()) {
             return false;
         }
     }
@@ -219,7 +287,19 @@ bool DownloadVideo(HWND hWndParent,
     (void)forceMp3; // Suppress unused parameter warning
     CreateDirectoryA("downloads", NULL);
 
-    std::string cmd = "yt-dlp.exe --newline --progress --concurrent-fragments 16 --progress-template \"[download] %(progress._percent_str)s at %(progress._speed_str)s ETA %(progress._eta_str)s\" ";
+    std::string ytDlpPath = GetYtDlpPath();
+    std::string ffmpegPath = GetFFmpegPath();
+
+    std::string cmd = "\"" + ytDlpPath + "\" --newline --progress --concurrent-fragments 16 --progress-template \"[download] %(progress._percent_str)s at %(progress._speed_str)s ETA %(progress._eta_str)s\" ";
+    
+    if (!ffmpegPath.empty()) {
+        size_t lastSlash = ffmpegPath.find_last_of("\\/");
+        if (lastSlash != std::string::npos) {
+            std::string ffmpegDir = ffmpegPath.substr(0, lastSlash);
+            cmd += "--ffmpeg-location \"" + ffmpegDir + "\" ";
+        }
+    }
+
     if (allowPlaylist) {
         cmd += "--yes-playlist ";
     } else {
